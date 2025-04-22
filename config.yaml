@@ -4,7 +4,7 @@ main:
   # Set this to null if you are running in prod
   project_name: nyc_airbnb
   experiment_name: development
-  steps: all
+  steps: get_data, basic_cleaning, train_val_test_split, test_regression_model
 etl:
   sample: "sample1.csv"
   min_price: 10  # dollars
@@ -36,3 +36,10 @@ modeling:
     max_features: 0.5
     # DO not change the following
     oob_score: true
+basic_cleaning:
+  input_artifact: sample1.csv:latest
+  output_artifact: clean_sample.csv
+  output_type: cleaned_data
+  output_description: "Data with price outliers removed"
+  min_price: 10
+  max_price: 350
