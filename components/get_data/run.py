@@ -2,11 +2,14 @@
 """
 This script uploads a sample file as an artifact to Weights & Biases (W&B).
 """
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import argparse
 import logging
-import os
-
 import wandb
+import pandas as pd
 from wandb_utils.log_artifact import log_artifact
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
@@ -14,7 +17,7 @@ logger = logging.getLogger()
 
 
 def go(args):
-"""
+    """
     Uploads a sample file to W&B as an artifact.
     Args:
         args (argparse.Namespace): Parsed command-line arguments containing:
@@ -24,20 +27,22 @@ def go(args):
             - artifact_description (str): A brief description of the artifact.
     """
 
-    run = wandb.init(job_type="download_file")
-    run.config.update(vars(args))  # Convert Namespace to dict before logging
+    run = wandb.init(job_type="get_data")
+    run.config.update({"input_path": "sample1.csv"})  # Convert Namespace to dict before logging
 
     logger.info(f"Returning sample {args.sample}")
     logger.info(f"Uploading artifact '{args.artifact_name}' to Weights & Biases")
     
+    # Compute the full path to the data file
+    sample_path = os.path.join(os.path.dirname(__file__), "data", args.sample)
+
     log_artifact(
         args.artifact_name,
         args.artifact_type,
         args.artifact_description,
-        os.path.join("data", args.sample),
+        sample_path,
         run,
     )
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload a sample file to W&B.")

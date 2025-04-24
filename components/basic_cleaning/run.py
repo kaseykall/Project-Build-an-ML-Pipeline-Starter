@@ -38,12 +38,12 @@ def go(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Clean data")
 
-    parser.add_argument("input_artifact", type=str, required=True, help="Raw dataset artifact from W&B")
-    parser.add_argument("output_artifact", type=str, required= True, help="Name for the cleaned data artifact")
-    parser.add_argument("output_type", type=str, required= True, help="Artifact type")
-    parser.add_argument("output_description", type=str, required= True, help="Artifact description")
-    parser.add_argument("min_price", type=float, required= True, help="Minimum price to keep")
-    parser.add_argument("max_price", type=float, required= True, help="Maximum price to keep")
+    parser.add_argument("input_artifact", type=str, help="Raw dataset artifact from W&B")
+    parser.add_argument("output_artifact", type=str, help="Name for the cleaned data artifact")
+    parser.add_argument("output_type", type=str, help="Artifact type")
+    parser.add_argument("output_description", type=str, help="Artifact description")
+    parser.add_argument("min_price", type=float, help="Minimum price to keep")
+    parser.add_argument("max_price", type=float, help="Maximum price to keep")
 
     args = parser.parse_args()
 
