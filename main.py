@@ -75,9 +75,12 @@ def go(config: DictConfig):
                 'main',
                 parameters={
                     "input_artifact": "clean_sample.csv:latest",
-                    "test_size": config["modeling"]["test_size"],
-                    "random_seed": config["modeling"]["random_seed"],
-                    "stratify_by": config["modeling"]["stratify_by"]
+                    "train_artifact": "trainval_data.csv",
+                    "test_artifact": "test_data.csv",
+                    "test_size": config['modeling']['test_size'],
+                    "val_size": config['modeling']['val_size'],
+                    "random_seed": config['modeling']['random_seed'],
+                    "stratify_by": config['modeling']['stratify_by']
                 }
             )
 
