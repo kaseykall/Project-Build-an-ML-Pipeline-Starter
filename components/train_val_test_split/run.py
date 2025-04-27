@@ -2,6 +2,8 @@
 """
 This script splits the provided dataframe in test and remainder
 """
+import yaml
+import os
 import argparse
 import logging
 import pandas as pd
@@ -48,6 +50,7 @@ def go(args):
                 fp.name,
                 run,
             )
+print("Inside train_val_test_split run.py")
 
 
 if __name__ == "__main__":
@@ -70,3 +73,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     go(args)
+wandb.finish()

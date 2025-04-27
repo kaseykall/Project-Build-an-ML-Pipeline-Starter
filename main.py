@@ -4,41 +4,46 @@ import tempfile
 import os
 import wandb
 import hydra
+import yaml
+import importlib
 from omegaconf import DictConfig
+from omegaconf import OmegaConf
+import pandas as pd
 
-_steps = [
-    "download",
-    "basic_cleaning",
-    "data_check",
-    "data_split",
-    "train_random_forest",
+_steps = ["download", "data_check", "data_split", "train_random_forest"]
     # NOTE: We do not include this in the steps so it is not run by mistake.
     # You first need to promote a model export to "prod" before you can run this,
     # then you need to run this step explicitly
 #    "test_regression_model"
-]
-
 
 # This automatically reads in the configuration
 @hydra.main(config_path=".", config_name="config", version_base=None)
 def go(config: DictConfig):
+    print("✅ Go function is being called")
+    print("🧾 Config contents:")
+    print(OmegaConf.to_yaml(config))
 
+  # Initialize wandb before starting
+    wandb.init(project=config['main']['project_name'], name=config['main']['experiment_name'])
+    
     # Setup the wandb experiment. All runs will be grouped under this name
     os.environ["WANDB_PROJECT"] = config["main"]["project_name"]
     os.environ["WANDB_RUN_GROUP"] = config["main"]["experiment_name"]
 
     # Steps to execute
     steps_par = config['main']['steps']
-    active_steps = steps_par.split(",") if steps_par != "all" else _steps
+    active_steps = [step.strip() for step in steps_par.split(",")] if steps_par != "all" else _steps
+
+    # Print active steps inside the function
+    print("🔍 Active steps parsed as:", active_steps)
 
     # Move to a temporary directory
     with tempfile.TemporaryDirectory() as tmp_dir:
-
         if "download" in active_steps:
+            print("Downloading data...")
             # Download file and load in W&B
             _ = mlflow.run(
-                f"{config['main']['components_repository']}/get_data",
-                "main",
+                f"{config['main']['components_repository']}/get_data", "main",
                 version='main',
                 env_manager="conda",
                 parameters={
@@ -48,11 +53,12 @@ def go(config: DictConfig):
                     "artifact_description": "Raw file as downloaded"
                 },
             )
+            print("Data download complete.")
 
         if "basic_cleaning" in active_steps:
+            print("Completing basic cleaning")
             _ = mlflow.run(
-            os.path.join(config["main"]["components_repository"], "basic_cleaning"),
-            "main",
+            os.path.join(config["main"]["components_repository"], "basic_cleaning"), "main",
             parameters={
                 "input_artifact": config["basic_cleaning"]["input_artifact"],
                 "output_artifact": config["basic_cleaning"]["output_artifact"],
@@ -62,23 +68,37 @@ def go(config: DictConfig):
                 "max_price": config["basic_cleaning"]["max_price"],
             },
         )
+        print("basic cleaning complete")
 
         if "data_check" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+            print("Running data checks...")
+            # Load the data artifact from W&B
+            artifact = wandb.api.artifact(config["basic_cleaning"]["output_artifact"], type="cleaned_data")
+            artifact.download(root=tmp_dir)
+            
+            # Load the cleaned sample data into a pandas DataFrame
+            cleaned_data_path = os.path.join(tmp_dir, "clean_sample.csv")
+            data = pd.read_csv(cleaned_data_path)
+
+            # Now we will import the test functions dynamically
+            test_module = importlib.import_module('src.data_check.test_data')
+
+            # Run the data check tests
+            test_module.test_column_names(data)
+            test_module.test_neighborhood_names(data)
+            test_module.test_proper_boundaries(data)
+            test_module.test_row_count(data)
+            test_module.test_price_range(data, config["basic_cleaning"]["min_price"], config["basic_cleaning"]["max_price"])
+
+            print("Data checks complete.")
 
         if "data_split" in active_steps:
+            print("Running data_split...")
             _ = mlflow.run(
-                f"{config['main']['components_repository']}/train_val_test_split",
-                'main',
-                parameters={
-                    "input_artifact": "clean_sample.csv:latest",
-                    "train_artifact": "trainval_data.csv",
-                    "test_artifact": "test_data.csv",
+                f"{config['main']['components_repository']}/train_val_test_split", 'main',
+                parameters ={
+                    "input": "clean_sample.csv:latest",
                     "test_size": config['modeling']['test_size'],
-                    "val_size": config['modeling']['val_size'],
                     "random_seed": config['modeling']['random_seed'],
                     "stratify_by": config['modeling']['stratify_by']
                 }
@@ -107,7 +127,6 @@ def go(config: DictConfig):
             ##################
 
             pass
-
 
 if __name__ == "__main__":
     go()

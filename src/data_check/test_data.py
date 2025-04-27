@@ -61,7 +61,7 @@ def test_similar_neigh_distrib(data: pd.DataFrame, ref_data: pd.DataFrame, kl_th
 
 # Test for row count
 def test_row_count(data):
-    assert data.shape[0] > 10000, f"Dataset has too few rows: {data.shape[0]}"
+    assert 15000 < data.shape[0] < 100000, f"Dataset has too few rows: {data.shape[0]}"
 
 # Test for price range
 def test_price_range(data):
