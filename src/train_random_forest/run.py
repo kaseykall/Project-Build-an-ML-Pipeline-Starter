@@ -7,10 +7,8 @@ import logging
 import os
 import shutil
 import matplotlib.pyplot as plt
-
 import mlflow
 import yaml
-
 import pandas as pd
 import numpy as np
 from sklearn.compose import ColumnTransformer
@@ -18,10 +16,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder, FunctionTransformer, OneHotEncoder
-
 import wandb
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline, make_pipeline
 
 
@@ -40,7 +37,10 @@ logger = logging.getLogger()
 
 def go(args):
 
-    run = wandb.init(job_type="train_random_forest")
+    run = wandb.init(
+        project="nyc_airbnb",
+        job_type="train_random_forest"
+    )
     run.config.update(args)
 
     # Get the Random Forest configuration and update W&B
@@ -48,6 +48,7 @@ def go(args):
         config = yaml.safe_load(fp)
     
     rf_config = config['modeling']['random_forest']  # Access the nested 'random_forest' dictionary
+    wandb.config.update(rf_config)
 
     # Fix the random seed for the Random Forest, so we get reproducible results
     rf_config['random_state'] = args.random_seed
@@ -57,20 +58,24 @@ def go(args):
     trainval_local_path = run.use_artifact(args.trainval_artifact).file()
    
     X = pd.read_csv(trainval_local_path)
-    y = X.pop("price")  # this removes the column "price" from X and puts it into y
+    y = X.pop("price")  # Removes the column "price" from X and puts it into y
 
     logger.info(f"Minimum price: {y.min()}, Maximum price: {y.max()}")
 
     X_train, X_val, y_train, y_val = train_test_split(
-        X, y, test_size=args.val_size, stratify=X[args.stratify_by], random_state=args.random_seed
+        X, y,
+        test_size=args.val_size,
+        stratify=X[args.stratify_by],
+        random_state=args.random_seed
     )
 
     logger.info("Preparing sklearn pipeline")
 
+    # Get full pipeline (preprocessing + model)
     sk_pipe, processed_features = get_inference_pipeline(rf_config, args.max_tfidf_features)
 
     # Then fit it to the X_train, y_train data
-    logger.info("Fitting")
+    logger.info("Fitting the model pipeline")
 
     ######################################
     # Fit the pipeline sk_pipe by calling the .fit method on X_train and y_train
@@ -79,13 +84,18 @@ def go(args):
 
     # Compute r2 and MAE
     logger.info("Scoring")
-    r_squared = sk_pipe.score(X_val, y_val)
-
     y_pred = sk_pipe.predict(X_val)
-    mae = mean_absolute_error(y_val, y_pred)
 
-    logger.info(f"Score: {r_squared}")
+    mae = mean_absolute_error(y_val, y_pred)
+    r2 = r2_score(y_val, y_pred)
+
+    logger.info(f"R2: {r2}")
     logger.info(f"MAE: {mae}")
+
+    wandb.log({
+        "mae": mae,
+        "r2": r2
+    })
 
     logger.info("Exporting model")
 
@@ -104,7 +114,7 @@ def go(args):
     ######################################
 
 
-    # Upload the model we just exported to W&B
+    # Creae W&B Artifact
     artifact = wandb.Artifact(
         args.output_artifact,
         type = 'model_export',
@@ -119,17 +129,15 @@ def go(args):
 
     ######################################
     # Here we save variable r_squared under the "r2" key
-    run.summary['r2'] = r_squared
+    run.summary['r2'] = r2
     # Now save the variable mae under the key "mae".
     run.summary['mae'] = mae
     ######################################
 
     # Upload to W&B the feture importance visualization
-    run.log(
-        {
-          "feature_importance": wandb.Image(fig_feat_imp),
-        }
-    )
+    run.log({
+        "feature_importance": wandb.Image(fig_feat_imp)
+    })
 
 
 def plot_feature_importance(pipe, feat_names):
