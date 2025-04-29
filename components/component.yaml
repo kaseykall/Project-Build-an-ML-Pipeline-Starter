@@ -1,0 +1,17 @@
+name: basic_cleaning
+description: "Cleans the data by removing price outliers."
+input_artifacts:
+  - name: raw_data
+    type: Dataset
+    description: "The raw dataset to clean."
+outputs:
+  - name: clean_sample
+    type: Dataset
+    description: "The cleaned dataset after removing outliers."
+parameters:
+  - name: min_price
+    type: float
+    description: "Minimum price threshold."
+  - name: max_price
+    type: float
+    description: "Maximum price threshold."

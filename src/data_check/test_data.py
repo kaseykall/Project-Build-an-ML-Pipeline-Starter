@@ -64,7 +64,7 @@ def test_row_count(data):
     assert 15000 < data.shape[0] < 100000, f"Dataset has too few rows: {data.shape[0]}"
 
 # Test for price range
-def test_price_range(data):
+def test_price_range(data, min_price, max_price):
     min_price = 10
     max_price = 350
     assert data['price'].between(min_price, max_price).all(), \

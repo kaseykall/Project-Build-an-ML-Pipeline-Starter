@@ -1,10 +1,10 @@
 main:
-  components_repository: "https://github.com/udacity/Project-Build-an-ML-Pipeline-Starter.git"
+  components_repository: "https://github.com/udacity/Project-Build-an-ML-Pipeline-Starter.git#components"
   # All the intermediate files will be copied to this directory at the end of the run.
   # Set this to null if you are running in prod
   project_name: nyc_airbnb
   experiment_name: development
-  steps: download, basic_cleaning, data_split, test_regression_model
+  steps: download, basic_cleaning, data_check, data_split, test_regression_model
 etl:
   sample: "sample1.csv"
   min_price: 10  # dollars
@@ -37,8 +37,8 @@ modeling:
     # DO not change the following
     oob_score: true
 basic_cleaning:
-  input_artifact: sample1.csv:latest
-  output_artifact: clean_sample.csv
+  input_artifact: clean_sample.csv:reference  # Reference tag points to the last used version
+  output_artifact: clean_sample.csv:latest   # Latest tag will point to the new version
   output_type: cleaned_data
   output_description: "Data with price outliers removed"
   min_price: 10

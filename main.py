@@ -9,6 +9,7 @@ import importlib
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 import pandas as pd
+import subprocess
 
 _steps = ["download", "data_check", "data_split", "train_random_forest"]
     # NOTE: We do not include this in the steps so it is not run by mistake.
@@ -73,7 +74,7 @@ def go(config: DictConfig):
         if "data_check" in active_steps:
             print("Running data checks...")
             # Load the data artifact from W&B
-            artifact = wandb.api.artifact(config["basic_cleaning"]["output_artifact"], type="cleaned_data")
+            artifact = wandb.Api().artifact(config["basic_cleaning"]["output_artifact"], type="cleaned_data")
             artifact.download(root=tmp_dir)
             
             # Load the cleaned sample data into a pandas DataFrame
@@ -118,7 +119,13 @@ def go(config: DictConfig):
             # Implement here #
             ##################
 
-            pass
+            subprocess.run([
+                "mlflow", "run", 
+                os.path.join("src", "train_random_forest"), 
+                "-P", f"trainval_artifact=trainval_data.csv:latest",
+                "-P", f"rf_config={rf_config}",
+                "-P", "output_artifact=random_forest_export"
+            ], check=True)
 
         if "test_regression_model" in active_steps:
 

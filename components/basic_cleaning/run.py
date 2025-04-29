@@ -14,7 +14,12 @@ def go(args):
 
     # Download input artifact from W&B
     artifact = run.use_artifact(args.input_artifact)
-    df = pd.read_csv(artifact.file())
+
+    # Download the artifact (returns the local directory path)
+    artifact_dir = artifact.download()
+
+    # Load the CSV file from the downloaded artifact directory
+    df = pd.read_csv(os.path.join(artifact_dir, 'sample.csv'))  # Adjust to the correct file name if needed
 
     # Clean: remove outliers
     idx = df['price'].between(args.min_price, args.max_price)
@@ -26,14 +31,13 @@ def go(args):
     df.to_csv(cleaned_path, index=False)
 
     # Log the cleaned artifact to W&B
-    artifact = wandb.Artifact(
+    cleaned_artifact = wandb.Artifact(
         args.output_artifact,
         type=args.output_type,
         description=args.output_description,
     )
-    artifact.add_file(cleaned_path)
-    run.log_artifact(artifact)
-
+    cleaned_artifact.add_file(cleaned_path)
+    run.log_artifact(cleaned_artifact)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Clean data")
