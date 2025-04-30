@@ -3,9 +3,11 @@
 This script trains a Random Forest
 """
 import argparse
+import json
 import logging
 import os
 import shutil
+import joblib
 import matplotlib.pyplot as plt
 import mlflow
 import yaml
@@ -50,6 +52,9 @@ def go(args):
     rf_config = config['modeling']['random_forest']  # Access the nested 'random_forest' dictionary
     wandb.config.update(rf_config)
 
+    # Now loading stratify_by separately
+    stratify_by = config['modeling'].get("stratify_by", None)  # fallback to None if not set
+    
     # Fix the random seed for the Random Forest, so we get reproducible results
     rf_config['random_state'] = args.random_seed
 
@@ -61,12 +66,17 @@ def go(args):
     y = X.pop("price")  # Removes the column "price" from X and puts it into y
 
     logger.info(f"Minimum price: {y.min()}, Maximum price: {y.max()}")
+    
+    print("Columns in the dataset:")
+    print(X.columns)
 
+    stratify = X[stratify_by] if stratify_by and stratify_by in X.columns else None
+    
     X_train, X_val, y_train, y_val = train_test_split(
         X, y,
         test_size=args.val_size,
-        stratify=X[args.stratify_by],
-        random_state=args.random_seed
+        random_state=rf_config['random_state'],
+        stratify=stratify
     )
 
     logger.info("Preparing sklearn pipeline")
@@ -118,7 +128,7 @@ def go(args):
     artifact = wandb.Artifact(
         args.output_artifact,
         type = 'model_export',
-        description = 'Trained ranfom forest artifact',
+        description = 'Trained random forest artifact',
         metadata = rf_config
     )
     artifact.add_dir('random_forest_dir')
@@ -295,7 +305,7 @@ if __name__ == "__main__":
         "--output_artifact",
         type=str,
         help="Name for the output serialized model",
-        required=True,
+        required=True
     )
 
     args = parser.parse_args()

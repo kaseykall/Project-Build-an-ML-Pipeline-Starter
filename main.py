@@ -107,7 +107,7 @@ def go(config: DictConfig):
 
         if "train_random_forest" in active_steps:
 
-            # NOTE: we need to serialize the random forest configuration into JSON
+            # NOTE: serialize the random forest configuration into JSON
             rf_config = os.path.abspath("rf_config.json")
             with open(rf_config, "w+") as fp:
                 json.dump(dict(config["modeling"]["random_forest"].items()), fp)  # DO NOT TOUCH
@@ -119,21 +119,30 @@ def go(config: DictConfig):
             # Implement here #
             ##################
 
-            subprocess.run([
-                "mlflow", "run", 
-                os.path.join("src", "train_random_forest"), 
-                "-P", f"trainval_artifact=trainval_data.csv:latest",
-                "-P", f"rf_config={rf_config}",
-                "-P", "output_artifact=random_forest_export"
-            ], check=True)
+            mlflow.run(
+                os.path.join("src", "train_random_forest"),
+                parameters={
+                    "trainval_artifact": "trainval_data.csv:latest",
+                    "rf_config": rf_config,
+                    "output_artifact": "random_forest_model:prod",
+                    "val_size": config["modeling"]["val_size"],
+                    "max_tfidf_features": config["modeling"]["max_tfidf_features"]
+                }
+            )
 
         if "test_regression_model" in active_steps:
 
             ##################
             # Implement here #
             ##################
-
-            pass
+            components_path = os.path.join(os.getcwd(), "components")
+            test_model = mlflow.run(
+                os.path.join(components_path, "test_regression_model"), "main",
+                parameters={
+                    "mlflow_model": "random_forest_model:prod",
+                    "test_dataset": "test_data.csv:latest"
+                }
+            )
 
 if __name__ == "__main__":
     go()
